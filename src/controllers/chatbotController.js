@@ -1,6 +1,10 @@
 require("dotenv").config();
+// cài đặt request để sử dụng api của bên thứ 3 ở đây là facebook npm install request
+const request = require("request")
+
 const PAGE_ACCESS_TOKEN = process.env.PAGE_ACCESS_TOKEN;
 const VERIFY_TOKEN = process.env.VERIFY_TOKEN;
+
 
 let getHomePage = (req, res) => {
     return res.send("xin chao");
@@ -42,7 +46,7 @@ let postWebhook = (req, res) => {
         // Iterates over each entry - there may be multiple if batched
         body.entry.forEach(function(entry) {
 
-            //khi nguời dùng gửi tin nhắn tới page các hàm dưới sẽ ghi lại PSID của người gửi PSID là mã nhận dạng người gửi
+            //khi nguời dùng gửi tin nhắn tới page entry.messageing[0] sẽ lấy thông tin tin nhắn gửi tới trong đó thuộc tính sender.id là PSID của người gửi qua đó lấy thông tin người gửi
             // Gets the body of the webhook event
             let webhook_event = entry.messaging[0];
             console.log(webhook_event);
@@ -50,6 +54,13 @@ let postWebhook = (req, res) => {
             // Get the sender PSID
             let sender_psid = webhook_event.sender.id;
             console.log('Sender PSID: ' + sender_psid);
+            // Check if the event is a message or postback and
+            // pass the event to the appropriate handler function
+            if (webhook_event.message) {
+                handleMessage(sender_psid, webhook_event.message);
+            } else if (webhook_event.postback) {
+                handlePostback(sender_psid, webhook_event.postback);
+            }
         });
 
         // Returns a '200 OK' response to all requests
@@ -60,6 +71,47 @@ let postWebhook = (req, res) => {
     }
 
 };
+// xử lý tin nhắn gửi tới
+function handleMessage(sender_psid, received_message) {
+
+    let response;
+    // lấy nội dung tin nhắn bàng received_message.text
+    // Check if the message contains text
+    if (received_message.text) {
+
+        // Create the payload for a basic text message
+        response = {
+            "text": `bạn đã gửi tin nhắn: "${received_message.text}". bây giờ gửi lại cho mình một cái ảnh!`
+        }
+    }
+
+    // Sends the response message
+    callSendAPI(sender_psid, response);
+}
+// hàm callSendAPI để gửi api tới server facebook sử dụng để gửi tin nhắn
+function callSendAPI(sender_psid, response) {
+    // Construct the message body
+    let request_body = {
+        "recipient": {
+            "id": sender_psid // xác định người nhận bằng sender_psid
+        },
+        "message": response // nội dung gửi tin nhắn
+    };
+    // sử dụng thư viện request đã cài ở trên để send api
+    // Send the HTTP request to the Messenger Platform
+    request({
+        "uri": "https://graph.facebook.com/v2.6/me/messages",
+        "qs": { "access_token": PAGE_ACCESS_TOKEN },
+        "method": "POST",
+        "json": request_body
+    }, (err, res, body) => {
+        if (!err) {
+            console.log('message sent!')
+        } else {
+            console.error("Unable to send message:" + err);
+        }
+    });
+}
 module.exports = {
     getHomePage: getHomePage,
     getWebhook: getWebhook,
