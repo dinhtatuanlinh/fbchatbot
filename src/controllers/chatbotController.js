@@ -50,8 +50,14 @@ let postWebhook = (req, res) => {
             // Gets the body of the webhook event
             let webhook_event = entry.messaging[0];
             console.log(webhook_event);
-
-            // Get the sender PSID
+            console.log('=====================')
+            console.log(webhook_event.entites);
+            console.log('+++++++++++++++++++++')
+            console.log(webhook_event.traits);
+            console.log('*********************')
+            console.log(webhook_event.detected_locales);
+            console.log('#####################')
+                // Get the sender PSID
             let sender_psid = webhook_event.sender.id;
             console.log('Sender PSID: ' + sender_psid);
             // Check if the event is a message or postback and
@@ -73,19 +79,45 @@ let postWebhook = (req, res) => {
 };
 // xử lý tin nhắn gửi tới
 function handleMessage(sender_psid, received_message) {
-
     let response;
-    // lấy nội dung tin nhắn bàng received_message.text
-    // Check if the message contains text
-    if (received_message.text) {
 
-        // Create the payload for a basic text message
+    // Checks if the message contains text
+    if (received_message.text) {
+        // Create the payload for a basic text message, which
+        // will be added to the body of our request to the Send API
         response = {
-            "text": `bạn đã gửi tin nhắn: "${received_message.text}". bây giờ gửi lại cho mình một cái ảnh!`
+            "text": `You sent the message: "${received_message.text}". Now send me an attachment!`
+        }
+    } else if (received_message.attachments) { // nếu tin nhắn gửi tới là file đính kèm thì xử lý thế nào
+        // Get the URL of the message attachment
+        let attachment_url = received_message.attachments[0].payload.url;
+        response = {
+            "attachment": {
+                "type": "template",
+                "payload": {
+                    "template_type": "generic",
+                    "elements": [{
+                        "title": "Đây có phải bức ảnh bạn gửi?", //đây là tiêu đề chính của tin nhắn trả lời khi tin nhắn tới là file đính kèm
+                        "subtitle": "Ấn vào button ở dưới để trả lời.", //tiêu để phụ dùng để hướng dẫn người gửi tin nhắn bấm nút
+                        "image_url": attachment_url,
+                        "buttons": [{
+                                "type": "postback",
+                                "title": "Yes!", // có thể chỉnh sửa để chuyển sang tiếng việt
+                                "payload": "yes", // không thay ở đây payload giống như là id của button
+                            },
+                            {
+                                "type": "postback",
+                                "title": "No!",
+                                "payload": "no",
+                            }
+                        ],
+                    }]
+                }
+            }
         }
     }
 
-    // Sends the response message
+    // Send the response message
     callSendAPI(sender_psid, response);
 }
 // hàm callSendAPI để gửi api tới server facebook sử dụng để gửi tin nhắn
@@ -111,6 +143,22 @@ function callSendAPI(sender_psid, response) {
             console.error("Unable to send message:" + err);
         }
     });
+}
+// xử lý khi người dùng tao tác bấm nút trong tin nhắn gửi tới
+function handlePostback(sender_psid, received_postback) {
+    let response;
+
+    // Get the payload for the postback
+    let payload = received_postback.payload;
+
+    // Set the response based on the postback payload
+    if (payload === 'yes') {
+        response = { "text": "Thanks!" }
+    } else if (payload === 'no') {
+        response = { "text": "Oops, try sending another image." }
+    }
+    // Send the message to acknowledge the postback
+    callSendAPI(sender_psid, response);
 }
 module.exports = {
     getHomePage: getHomePage,
