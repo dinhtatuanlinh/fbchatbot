@@ -1,10 +1,13 @@
 require("dotenv").config();
+const PAGE_ACCESS_TOKEN = process.env.PAGE_ACCESS_TOKEN;
+const VERIFY_TOKEN = process.env.VERIFY_TOKEN;
+
 let getHomePage = (req, res) => {
     return res.send("xin chao");
 };
 let getWebhook = (req, res) => {
     // Your verify token. Should be a random string.
-    let VERIFY_TOKEN = process.env.VERIFY_TOKEN;
+
     // fb sẽ truyền các tham số dưới lên server để kiểm tra verify token mình đã cung cấp cho nó
     // Parse the query params
     let mode = req.query['hub.mode'];
